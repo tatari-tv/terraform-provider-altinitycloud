@@ -1,4 +1,4 @@
-module github.com/hashicorp/terraform-provider-scaffolding-framework
+module github.com/tatari-tv/terraform-provider-altinitycloud
 
 go 1.19
 
