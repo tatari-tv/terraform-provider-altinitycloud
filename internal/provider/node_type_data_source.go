@@ -57,18 +57,6 @@ func (d *NodeTypeDataSource) Metadata(ctx context.Context, req datasource.Metada
 
 func (d *NodeTypeDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: "Altinity.Cloud Node Type data source",
-
-		Attributes: map[string]schema.Attribute{
-			"env_id": schema.StringAttribute{
-				MarkdownDescription: "Altinity.Cloud environment ID",
-				Optional:            false,
-			},
-		},
-	}
-
-	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"env_id": schema.StringAttribute{
 				MarkdownDescription: "Altinity.Cloud environment ID",
@@ -128,7 +116,7 @@ func (d *NodeTypeDataSource) Schema(ctx context.Context, req datasource.SchemaRe
 								},
 							},
 						},
-						"nodeSelector": schema.StringAttribute{
+						"node_selector": schema.StringAttribute{
 							Computed: true,
 						},
 						"cpu_alloc": schema.StringAttribute{
