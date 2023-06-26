@@ -41,7 +41,13 @@ Fill this in for each provider
 
 ## Developing the Provider
 
-If you wish to work on the provider, you'll first need [Go](http://www.golang.org) installed on your machine (see [Requirements](#requirements) above).
+If you wish to work on the provider, you'll first need [Go](http://www.golang.org) installed on your machine (see [Requirements](#requirements) above). You can download binaries from [release](https://github.com/tatari-tv/terraform-provider-altinitycloud/releases) page. 
+
+You will need to import the gpg public key in the repository before downloading the binary
+
+```shell
+cat goreleaser.pub | gpg --import
+```
 
 ### Create/Update .terraformrc to override the provider with local binary
 ```shell
