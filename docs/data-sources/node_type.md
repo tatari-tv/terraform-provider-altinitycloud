@@ -19,6 +19,10 @@ description: |-
 
 - `env_id` (String) Altinity.Cloud environment ID
 
+### Optional
+
+- `id` (String) Altinity.Cloud environment ID
+
 ### Read-Only
 
 - `data` (Attributes List) (see [below for nested schema](#nestedatt--data))
