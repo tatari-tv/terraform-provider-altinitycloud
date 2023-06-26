@@ -7,60 +7,41 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/tatari-tv/terraform-provider-altinitycloud/cmd/client"
+	"strconv"
 )
 
-// Ensure provider defined types fully satisfy framework interfaces.
-var _ datasource.DataSource = &NodeTypeDataSource{}
+// Ensure the implementation satisfies the expected interfaces.
+var (
+	_ datasource.DataSource              = &nodeTypeDataSource{}
+	_ datasource.DataSourceWithConfigure = &nodeTypeDataSource{}
+)
 
-func NewExampleDataSource() datasource.DataSource {
-	return &NodeTypeDataSource{}
+func NewNodeTypesDataSource() datasource.DataSource {
+	return &nodeTypeDataSource{}
 }
 
-// NodeTypeDataSource defines the data source implementation.
-type NodeTypeDataSource struct {
-	client *altinityCloudClient
+// nodeTypeDataSource defines the Data source implementation.
+type nodeTypeDataSource struct {
+	client *client.AltinityCloudClient
 }
 
-// NodeTypeDataSourceModel describes the data source data model.
-type NodeTypeDataSourceModel struct {
-	envId types.String `tfsdk:"env_id"`
-	Id    types.String `tfsdk:"id"`
-}
-
-type NodeTypes struct {
-	Data []struct {
-		ID            string `json:"id"`
-		Scope         string `json:"scope"`
-		Code          string `json:"code"`
-		Name          string `json:"name"`
-		Pool          string `json:"pool"`
-		StorageClass  string `json:"storageClass"`
-		CPU           string `json:"cpu"`
-		Memory        string `json:"memory"`
-		IDEnvironment string `json:"id_environment"`
-		ExtraSpec     string `json:"extraSpec"`
-		Tolerations   []struct {
-			Key      string `json:"key"`
-			Operator string `json:"operator"`
-			Effect   string `json:"effect"`
-			Value    string `json:"value"`
-		} `json:"tolerations"`
-		NodeSelector string `json:"nodeSelector"`
-		CPUAlloc     string `json:"cpu_alloc"`
-		MemoryAlloc  string `json:"memory_alloc"`
-	} `json:"data"`
-}
-
-func (d *NodeTypeDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+// Metadata - returns the altinitycloud_node_type type name.
+func (d *nodeTypeDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_node_type"
 }
 
-func (d *NodeTypeDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+// Schema - defines the node_type schema.
+func (d *nodeTypeDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				MarkdownDescription: "Altinity.Cloud environment ID",
+				Optional:            true,
+			},
 			"env_id": schema.StringAttribute{
 				MarkdownDescription: "Altinity.Cloud environment ID",
-				Optional:            false,
+				Required:            true,
 			},
 			"data": schema.ListNestedAttribute{
 				Computed: true,
@@ -96,7 +77,6 @@ func (d *NodeTypeDataSource) Schema(ctx context.Context, req datasource.SchemaRe
 						"extra_spec": schema.StringAttribute{
 							Computed: true,
 						},
-
 						"tolerations": schema.ListNestedAttribute{
 							Computed: true,
 							NestedObject: schema.NestedAttributeObject{
@@ -132,13 +112,14 @@ func (d *NodeTypeDataSource) Schema(ctx context.Context, req datasource.SchemaRe
 	}
 }
 
-func (d *NodeTypeDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+// Configure - bootstraps node type datasource with Altinity.Cloud client.
+func (d *nodeTypeDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	// Prevent panic if the provider has not been configured.
 	if req.ProviderData == nil {
 		return
 	}
 
-	client, ok := req.ProviderData.(*altinityCloudClient)
+	client, ok := req.ProviderData.(*client.AltinityCloudClient)
 
 	if !ok {
 		resp.Diagnostics.AddError(
@@ -152,32 +133,67 @@ func (d *NodeTypeDataSource) Configure(ctx context.Context, req datasource.Confi
 	d.client = client
 }
 
-func (d *NodeTypeDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var data NodeTypeDataSourceModel
+// Read - implements the read functionality for node type.
+func (d *nodeTypeDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var state NodeTypeDataSourceModel
 
-	// Read Terraform configuration data into the model
-	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	// Read Terraform configuration state into the model
+	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := d.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read example, got error: %s", err))
-	//     return
-	// }
+	// set an ID
+	state.Id = types.StringValue("node_type_" + state.EnvId.ValueString())
 
-	// For the purposes of this example code, hardcoding a response value to
-	// save into the Terraform state.
-	data.Id = types.StringValue("example-id")
+	// initialize provider client state and make a call using it.
+	nodeTypes, err := d.client.GetNodeTypes(state.EnvId.String())
+	if err != nil {
+		resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read example, got error: %s", err))
+		return
+	}
+
+	for _, nt := range nodeTypes.Data {
+		id, err := strconv.ParseInt(nt.ID, 10, 64)
+		if err != nil {
+			tflog.Error(ctx, fmt.Sprintf("fetch node types from Altinity.Cloud API in environment %v", err))
+		}
+		nodeTypeState := NodeTypeModel{
+			ID:            types.Int64Value(id),
+			Scope:         types.StringValue(nt.Scope),
+			Code:          types.StringValue(nt.Code),
+			Name:          types.StringValue(nt.Name),
+			Pool:          types.StringValue(nt.Pool),
+			StorageClass:  types.StringValue(nt.StorageClass),
+			CPU:           types.StringValue(nt.CPU),
+			Memory:        types.StringValue(nt.Memory),
+			IDEnvironment: types.StringValue(nt.IDEnvironment),
+			ExtraSpec:     types.StringValue(nt.ExtraSpec),
+			NodeSelector:  types.StringValue(nt.NodeSelector),
+			CPUAlloc:      types.StringValue(nt.CPUAlloc),
+			MemoryAlloc:   types.StringValue(nt.MemoryAlloc),
+		}
+		for _, t := range nt.Tolerations {
+			nodeTypeState.Tolerations = append(nodeTypeState.Tolerations, NodeTypeTolerationModel{
+				Key:      types.StringValue(t.Key),
+				Operator: types.StringValue(t.Operator),
+				Effect:   types.StringValue(t.Effect),
+				Value:    types.StringValue(t.Value),
+			})
+		}
+
+		state.Data = append(state.Data, nodeTypeState)
+	}
 
 	// Write logs using the tflog package
 	// Documentation: https://terraform.io/plugin/log
-	tflog.Trace(ctx, "read a data source")
+	tflog.Trace(ctx, fmt.Sprintf("fetch node types from Altinity.Cloud API in environment %v", state.EnvId))
 
-	// Save data into Terraform state
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	// Set state
+	diags := resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
