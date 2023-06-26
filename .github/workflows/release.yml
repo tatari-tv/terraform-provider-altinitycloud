@@ -25,6 +25,12 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@72b6676b71ab476b77e676928516f6982eef7a41 # v5.3.0
+        id: import_gpg
+        with:
+          gpg_private_key: ${{ secrets.GORELEASER_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GORELEASER_PASSPHRASE }}
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@336e29918d653399e599bfca99fadc1d7ffbc9f7 # v4.3.0
         with:
@@ -32,3 +38,4 @@ jobs:
         env:
           # GitHub sets the GITHUB_TOKEN secret automatically.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
