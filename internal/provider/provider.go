@@ -2,15 +2,15 @@ package provider
 
 import (
 	"context"
-	"net/http"
-	"os"
-
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/tatari-tv/terraform-provider-altinitycloud/cmd/client"
+	"os"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -18,7 +18,7 @@ var (
 	_ provider.Provider = &altinityCloudProvider{}
 )
 
-// New is a helper function to simplify provider server and testing implementation.
+// New - helper function to simplify provider server and testing implementation.
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
 		return &altinityCloudProvider{
@@ -27,14 +27,7 @@ func New(version string) func() provider.Provider {
 	}
 }
 
-// altinityCloudClient is wrapper for http client and configs.
-type altinityCloudClient struct {
-	client      *http.Client
-	APIEndpoint string
-	APIToken    string
-}
-
-// altinityCloudProvider is the provider implementation.
+// altinityCloudProvider - provider implementation.
 type altinityCloudProvider struct {
 	// version is set to the provider version on release, "dev" when the
 	// provider is built and ran locally, and "test" when running acceptance
@@ -42,19 +35,19 @@ type altinityCloudProvider struct {
 	version string
 }
 
-// altinityCloudProviderModel maps provider schema data to a Go type.
+// altinityCloudProviderModel - maps provider schema Data to a Go type.
 type altinityCloudProviderModel struct {
 	APIEndpoint types.String `tfsdk:"api_endpoint"`
 	APIToken    types.String `tfsdk:"api_token"`
 }
 
-// Metadata returns the provider type name.
+// Metadata - returns the provider type name.
 func (p *altinityCloudProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "altinitycloud"
 	resp.Version = p.version
 }
 
-// Schema defines the provider-level schema for configuration data.
+// Schema - defines the provider-level schema for configuration Data.
 func (p *altinityCloudProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
@@ -68,8 +61,9 @@ func (p *altinityCloudProvider) Schema(_ context.Context, _ provider.SchemaReque
 	}
 }
 
+// Configure - bootstraps provider with configurations needed to run.
 func (p *altinityCloudProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	// Retrieve provider data from configuration
+	// Retrieve provider Data from configuration
 	var config altinityCloudProviderModel
 	diags := req.Config.Get(ctx, &config)
 	resp.Diagnostics.Append(diags...)
@@ -143,10 +137,21 @@ func (p *altinityCloudProvider) Configure(ctx context.Context, req provider.Conf
 		return
 	}
 
-	client := altinityCloudClient{
-		client:      http.DefaultClient,
-		APIEndpoint: endpoint,
-		APIToken:    token,
+	ctx = tflog.SetField(ctx, "api_endpoint", endpoint)
+	ctx = tflog.MaskFieldValuesWithFieldKeys(ctx, "api_token", token)
+
+	tflog.Debug(ctx, "Creating Altiniy.Cloud client")
+
+	// Create a new Altinity.Cloud client using the configuration values
+	client, err := client.NewClient(&endpoint, &token)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to Create Altinity.Cloud API Client",
+			"An unexpected error occurred when creating the Altinity.Cloud API client. "+
+				"If the error is not clear, please contact the provider developers.\n\n"+
+				"Altinity.Cloud Client Error: "+err.Error(),
+		)
+		return
 	}
 
 	// Make the Altinity.Cloud client available during DataSource and Resource
@@ -155,12 +160,14 @@ func (p *altinityCloudProvider) Configure(ctx context.Context, req provider.Conf
 	resp.ResourceData = client
 }
 
-// DataSources defines the data sources implemented in the provider.
+// DataSources - defines the Data sources implemented in the provider.
 func (p *altinityCloudProvider) DataSources(_ context.Context) []func() datasource.DataSource {
-	return nil
+	return []func() datasource.DataSource{
+		NewNodeTypesDataSource,
+	}
 }
 
-// Resources defines the resources implemented in the provider.
+// Resources - defines the resources implemented in the provider.
 func (p *altinityCloudProvider) Resources(_ context.Context) []func() resource.Resource {
 	return nil
 }
