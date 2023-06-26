@@ -35,7 +35,7 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-		Address: "registry.terraform.io/tatari.tv/altinitycloud",
+		Address: "tatari.tv/dev/altinitycloud",
 		Debug:   debug,
 	}
 
