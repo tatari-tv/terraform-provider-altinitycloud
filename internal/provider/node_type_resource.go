@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
@@ -15,8 +16,9 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource              = &nodeTypeResource{}
-	_ resource.ResourceWithConfigure = &nodeTypeResource{}
+	_ resource.Resource                = &nodeTypeResource{}
+	_ resource.ResourceWithConfigure   = &nodeTypeResource{}
+	_ resource.ResourceWithImportState = &nodeTypeResource{}
 )
 
 // NewNodeTypeResource is a helper function to simplify the provider implementation.
@@ -355,6 +357,12 @@ func (r *nodeTypeResource) Delete(ctx context.Context, req resource.DeleteReques
 		)
 		return
 	}
+}
+
+func (r *nodeTypeResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	tflog.Info(ctx, "Import node type resource")
+	// Retrieve import ID and save to id attribute
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
 func mapNodeTypeToNodeTypeResponse(nodeType client.NodeType) NodeTypeModel {
