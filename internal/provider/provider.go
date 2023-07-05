@@ -35,7 +35,7 @@ type altinityCloudProvider struct {
 	version string
 }
 
-// altinityCloudProviderModel - maps provider schema Data to a Go type.
+// altinityCloudProviderModel - maps provider schema NodeTypes to a Go type.
 type altinityCloudProviderModel struct {
 	APIEndpoint types.String `tfsdk:"api_endpoint"`
 	APIToken    types.String `tfsdk:"api_token"`
@@ -47,7 +47,7 @@ func (p *altinityCloudProvider) Metadata(_ context.Context, _ provider.MetadataR
 	resp.Version = p.version
 }
 
-// Schema - defines the provider-level schema for configuration Data.
+// Schema - defines the provider-level schema for configuration NodeTypes.
 func (p *altinityCloudProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
@@ -63,7 +63,8 @@ func (p *altinityCloudProvider) Schema(_ context.Context, _ provider.SchemaReque
 
 // Configure - bootstraps provider with configurations needed to run.
 func (p *altinityCloudProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	// Retrieve provider Data from configuration
+	tflog.Info(ctx, "Configuring Altinity.Cloud client")
+	// Retrieve provider NodeTypes from configuration
 	var config altinityCloudProviderModel
 	diags := req.Config.Get(ctx, &config)
 	resp.Diagnostics.Append(diags...)
@@ -103,7 +104,7 @@ func (p *altinityCloudProvider) Configure(ctx context.Context, req provider.Conf
 	token := os.Getenv("ALTINITY_CLOUD_TOKEN")
 
 	if !config.APIEndpoint.IsNull() {
-		endpoint = config.APIToken.ValueString()
+		endpoint = config.APIEndpoint.ValueString()
 	}
 
 	if !config.APIToken.IsNull() {
@@ -160,7 +161,7 @@ func (p *altinityCloudProvider) Configure(ctx context.Context, req provider.Conf
 	resp.ResourceData = client
 }
 
-// DataSources - defines the Data sources implemented in the provider.
+// DataSources - defines the NodeTypes sources implemented in the provider.
 func (p *altinityCloudProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewNodeTypesDataSource,
@@ -169,5 +170,7 @@ func (p *altinityCloudProvider) DataSources(_ context.Context) []func() datasour
 
 // Resources - defines the resources implemented in the provider.
 func (p *altinityCloudProvider) Resources(_ context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		NewNodeTypeResource,
+	}
 }

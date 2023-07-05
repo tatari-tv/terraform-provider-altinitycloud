@@ -38,7 +38,7 @@ func NewClient(endpoint, token *string) (*AltinityCloudClient, error) {
 }
 
 // doRequest - sends HTTP over the wire with correct headers and returns response.
-func (c *AltinityCloudClient) doRequest(req *http.Request, authToken *string) ([]byte, error) {
+func (c *AltinityCloudClient) doRequest(req *http.Request, authToken *string) ([]byte, error) { // nolint: unparam
 	token := c.APIToken
 
 	if authToken != nil {

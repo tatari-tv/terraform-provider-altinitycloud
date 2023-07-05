@@ -11,5 +11,5 @@ lint:
 
 # Run acceptance tests
 .PHONY: testacc
-testacc:
+testacc: lint
 	TF_ACC=1 go test ./... -v $(TESTARGS) -timeout 120m
