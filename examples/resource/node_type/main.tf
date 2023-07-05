@@ -8,24 +8,25 @@ terraform {
 
 provider "altinitycloud" {
   api_endpoint = "https://acm.altinity.cloud/api"
+  // set API token via environment variable ALTINITYCLOUD_API_TOKEN
 }
 
 resource "altinitycloud_node_type" "example" {
   env_id = "648"
   node_type = {
-    name          = "exampleTFProvider"
+    name          = "tf_example"
     scope         = "clickhouse"
-    code          = "exampleTFProvider"
+    code          = "danmahoneyexample"
     storage_class = "gp3"
     memory        = "8192"
     cpu           = "4"
-    pool          = "m6a.large"
+    pool          = "m6a.xlarge"
     tolerations = [
       {
-        key      = "key"
+        key      = "dedicated"
         operator = "Equal"
         effect   = "NoSchedule"
-        value    = "dedicated=altinity-clickhouse"
+        value    = "altinity-example"
       }
     ]
   }

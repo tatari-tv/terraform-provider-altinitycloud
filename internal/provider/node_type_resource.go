@@ -148,32 +148,32 @@ func (r *nodeTypeResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 // Create - creates the resource and sets the initial Terraform state.
 func (r *nodeTypeResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	tflog.Info(ctx, "Creating node type resource")
-	// Retrieve values from state
-	var state NodeTypeResourceModel
-	diags := req.Plan.Get(ctx, &state)
+	// Retrieve values from plan
+	var plan NodeTypeResourceModel
+	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
-		tflog.Error(ctx, "Failed to retrieve state for Altinity.Cloud node type resource")
+		tflog.Error(ctx, "Failed to retrieve plan for Altinity.Cloud node type resource")
 		return
 	}
 
-	// Generate API request body from state/TF state
-	tflog.Info(ctx, "Generating API request params from the state")
+	// Generate API request body from plan
+	tflog.Info(ctx, "Generating API create request params from the plan")
 	reqData := client.NodeType{
-		ID:           state.NodeType.ID.ValueString(),
-		Name:         state.NodeType.Name.ValueString(),
-		Scope:        state.NodeType.Scope.ValueString(),
-		Code:         state.NodeType.Code.ValueString(),
-		Pool:         state.NodeType.Pool.ValueString(),
-		StorageClass: state.NodeType.StorageClass.ValueString(),
-		CPU:          state.NodeType.CPU.ValueString(),
-		Memory:       state.NodeType.Memory.ValueString(),
-		ExtraSpec:    state.NodeType.ExtraSpec.ValueString(),
-		NodeSelector: state.NodeType.NodeSelector.ValueString(),
+		ID:           plan.NodeType.ID.ValueString(),
+		Name:         plan.NodeType.Name.ValueString(),
+		Scope:        plan.NodeType.Scope.ValueString(),
+		Code:         plan.NodeType.Code.ValueString(),
+		Pool:         plan.NodeType.Pool.ValueString(),
+		StorageClass: plan.NodeType.StorageClass.ValueString(),
+		CPU:          plan.NodeType.CPU.ValueString(),
+		Memory:       plan.NodeType.Memory.ValueString(),
+		ExtraSpec:    plan.NodeType.ExtraSpec.ValueString(),
+		NodeSelector: plan.NodeType.NodeSelector.ValueString(),
 		Tolerations:  nil,
 	}
 	// Convert tolerations from schema to API format
-	for _, nt := range state.NodeType.Tolerations {
+	for _, nt := range plan.NodeType.Tolerations {
 		reqData.Tolerations = append(reqData.Tolerations, client.Toleration{
 			Key:      nt.Key.ValueString(),
 			Operator: nt.Operator.ValueString(),
@@ -190,7 +190,7 @@ func (r *nodeTypeResource) Create(ctx context.Context, req resource.CreateReques
 	}
 	// Create new Node Type
 	tflog.Info(ctx, "Creating new node type via API "+string(data))
-	nodeType, err := r.client.CreateNodeType(state.EnvID.ValueString(), reqData)
+	nodeType, err := r.client.CreateNodeType(plan.EnvID.ValueString(), reqData)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating node type",
@@ -202,11 +202,11 @@ func (r *nodeTypeResource) Create(ctx context.Context, req resource.CreateReques
 	// Map response body to schema and populate Computed attribute values
 	d, _ := json.Marshal(nodeType)
 	tflog.Info(ctx, fmt.Sprintf("Mapping response body to schema and populating Computed attribute values %s", string(d)))
-	state.NodeType = mapNodeTypeToNodeTypeResponse(nodeType)
-	state.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
+	plan.NodeType = mapNodeTypeToNodeTypeResponse(nodeType)
+	plan.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
 
-	// Set state to fully populated data
-	diags = resp.State.Set(ctx, state)
+	// Set plan to fully populated data
+	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -216,18 +216,18 @@ func (r *nodeTypeResource) Create(ctx context.Context, req resource.CreateReques
 // Read refreshes the Terraform state with the latest data.
 func (r *nodeTypeResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	tflog.Info(ctx, "Read Altinity.Cloud node type resource")
-	// Get current state
-	var state NodeTypeResourceModel
-	diags := req.State.Get(ctx, &state)
+	// Get current plan
+	var plan NodeTypeResourceModel
+	diags := req.State.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
-		tflog.Trace(ctx, fmt.Sprintf("failed to get terraform state %v", resp.Diagnostics))
+		tflog.Trace(ctx, fmt.Sprintf("failed to get terraform plan %v", resp.Diagnostics))
 		return
 	}
 
 	// Get refreshed node types from Altinity.Cloud
-	tflog.Trace(ctx, fmt.Sprintf("env id %v node type name %v", state.EnvID.String(), state.NodeType.Name.String()))
-	nodeType, err := r.client.GetNodeType(state.EnvID.ValueString(), state.NodeType.Name.ValueString())
+	tflog.Trace(ctx, fmt.Sprintf("env id %v node type name %v", plan.EnvID.String(), plan.NodeType.Name.String()))
+	nodeType, err := r.client.GetNodeType(plan.EnvID.ValueString(), plan.NodeType.Name.ValueString())
 	tflog.Trace(ctx, fmt.Sprintf("got node type from API %v", nodeType))
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -237,7 +237,7 @@ func (r *nodeTypeResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	// Overwrite current state with refreshed data
+	// Overwrite current plan with refreshed data
 	updatedState := NodeTypeModel{
 		ID:           types.StringValue(nodeType.ID),
 		Scope:        types.StringValue(nodeType.Scope),
@@ -261,13 +261,13 @@ func (r *nodeTypeResource) Read(ctx context.Context, req resource.ReadRequest, r
 			Value:    types.StringValue(t.Value),
 		})
 	}
-	// update state with node type
-	state.NodeType = updatedState
+	// update plan with node type
+	plan.NodeType = updatedState
 
-	tflog.Trace(ctx, fmt.Sprintf("refreshed node types from API in environment %v", state.EnvID))
+	tflog.Trace(ctx, fmt.Sprintf("refreshed node types from API in environment %v", plan.EnvID))
 
-	// set refreshed state
-	diags = resp.State.Set(ctx, state)
+	// set refreshed plan
+	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -276,10 +276,85 @@ func (r *nodeTypeResource) Read(ctx context.Context, req resource.ReadRequest, r
 
 // Update - updates the resource and sets the updated Terraform state on success.
 func (r *nodeTypeResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	tflog.Info(ctx, "Update node type resource")
+	// Retrieve values from plan
+	var plan NodeTypeResourceModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		tflog.Error(ctx, "Failed to retrieve plan for Altinity.Cloud node type resource")
+		return
+	}
+
+	// Generate API request body from plan
+	tflog.Info(ctx, "Generating API update request params from the plan")
+	reqData := client.NodeType{
+		Name:         plan.NodeType.Name.ValueString(),
+		Scope:        plan.NodeType.Scope.ValueString(),
+		Code:         plan.NodeType.Code.ValueString(),
+		Pool:         plan.NodeType.Pool.ValueString(),
+		StorageClass: plan.NodeType.StorageClass.ValueString(),
+		CPU:          plan.NodeType.CPU.ValueString(),
+		Memory:       plan.NodeType.Memory.ValueString(),
+		ExtraSpec:    plan.NodeType.ExtraSpec.ValueString(),
+		NodeSelector: plan.NodeType.NodeSelector.ValueString(),
+		Tolerations:  nil,
+	}
+	// Convert tolerations from schema to API format
+	for _, nt := range plan.NodeType.Tolerations {
+		reqData.Tolerations = append(reqData.Tolerations, client.Toleration{
+			Key:      nt.Key.ValueString(),
+			Operator: nt.Operator.ValueString(),
+			Effect:   nt.Effect.ValueString(),
+			Value:    nt.Value.ValueString(),
+		})
+	}
+
+	// Update node type in Altinity.Cloud
+	tflog.Info(ctx, fmt.Sprintf("Updating node type %s in environment ID %s", plan.NodeType.Name.ValueString(), plan.EnvID.ValueString()))
+	nodeType, err := r.client.UpdateNodeType(plan.EnvID.ValueString(), reqData)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error updating node type",
+			"Could not update node type, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	// Map response body to schema and populate Computed attribute values
+	d, _ := json.Marshal(nodeType)
+	tflog.Info(ctx, fmt.Sprintf("Mapping response body to schema and populating Computed attribute values %s", string(d)))
+	plan.NodeType = mapNodeTypeToNodeTypeResponse(nodeType)
+	plan.LastUpdated = types.StringValue(time.Now().Format(time.RFC850))
+
+	// Set plan to fully populated data
+	diags = resp.State.Set(ctx, plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 // Delete - deletes the resource and removes the Terraform state on success.
 func (r *nodeTypeResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	tflog.Info(ctx, "Delete node type resource")
+	// Retrieve values from plan
+	var state NodeTypeResourceModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Delete existing order
+	err := r.client.DeleteNodeType(state.NodeType.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Deleting HashiCups Order",
+			"Could not delete order, unexpected error: "+err.Error(),
+		)
+		return
+	}
 }
 
 func mapNodeTypeToNodeTypeResponse(nodeType client.NodeType) NodeTypeModel {
