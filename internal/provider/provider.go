@@ -165,6 +165,7 @@ func (p *altinityCloudProvider) Configure(ctx context.Context, req provider.Conf
 func (p *altinityCloudProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewNodeTypesDataSource,
+		NewUsersDataSource,
 	}
 }
 
