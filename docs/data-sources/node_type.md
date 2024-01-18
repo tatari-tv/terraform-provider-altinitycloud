@@ -47,5 +47,3 @@ Optional:
 - `key` (String)
 - `operator` (String)
 - `value` (String)
-
-
